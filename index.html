@@ -49,11 +49,9 @@
                 <span>Gato Negro Taller</span>
             </h1>
             <div class="flex items-center gap-1.5">
-                <!-- BOTÓN MODO OSCURO / CLARO -->
                 <button onclick="toggleDarkMode()" id="btn-theme" title="Cambiar Tema" class="text-xs bg-blue-700 dark:bg-slate-700 hover:bg-blue-800 dark:hover:bg-slate-600 px-2.5 py-1.5 rounded-lg font-medium transition text-amber-300">
                     <i id="theme-icon" class="fa-solid fa-moon"></i>
                 </button>
-
                 <button onclick="abrirModalCotizador()" class="text-xs bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow-sm">
                     <i class="fa-solid fa-calculator"></i> Cotizar
                 </button>
@@ -123,6 +121,16 @@
                 </div>
             </div>
 
+            <!-- FILTRO DE VISTA TALLER (ACTIVOS VS HISTORIAL) -->
+            <div class="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                <button onclick="cambiarVistaTaller('activos')" id="btn-vista-activos" class="flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm text-center">
+                    <i class="fa-solid fa-spinner"></i> En Proceso
+                </button>
+                <button onclick="cambiarVistaTaller('historial')" id="btn-vista-historial" class="flex-1 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 text-center">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Historial Completado
+                </button>
+            </div>
+
             <!-- Tarjetas de Resumen Taller -->
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-2.5 rounded-2xl">
@@ -145,14 +153,14 @@
             <!-- Contenedor de Listas del Taller -->
             <div class="space-y-4 pt-1">
                 <div>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2 px-1"><i class="fa-solid fa-wave-square"></i> Piezas en Proceso de Doblez</h3>
+                    <h3 id="titulo-sec-doblez" class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2 px-1"><i class="fa-solid fa-wave-square"></i> Piezas en Proceso de Doblez</h3>
                     <div id="lista-doblez" class="space-y-3">
                         <!-- Inyectado por JS -->
                     </div>
                 </div>
 
                 <div class="pt-2">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-2 px-1"><i class="fa-solid fa-palette"></i> Piezas en Proceso de Pintura</h3>
+                    <h3 id="titulo-sec-pintura" class="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-2 px-1"><i class="fa-solid fa-palette"></i> Piezas en Proceso de Pintura</h3>
                     <div id="lista-pintura" class="space-y-3">
                         <!-- Inyectado por JS -->
                     </div>
@@ -192,7 +200,6 @@
                     </div>
                 </div>
 
-                <!-- Historial Reciente de Ventas -->
                 <div class="pt-2 space-y-2">
                     <p class="text-xs font-bold text-emerald-900 dark:text-emerald-300">Historial Reciente de Ventas:</p>
                     <div id="lista-historial-ventas" class="space-y-1.5 max-h-40 overflow-y-auto text-xs">
@@ -354,7 +361,7 @@
         </div>
     </div>
 
-    <!-- MODAL NUEVA/EDITAR PIEZA (CON STOCK MÍNIMO) -->
+    <!-- MODAL NUEVA/EDITAR PIEZA -->
     <div id="modal-pieza" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-700">
             <h3 id="modal-pieza-titulo" class="font-bold text-lg text-slate-900 dark:text-white">Nueva Pieza / Accesorio</h3>
@@ -486,6 +493,7 @@
         let ventasHistorial = [];
         let filtroActual = 'todos';
         let modeloFiltroActual = 'todos';
+        let vistaTallerActual = 'activos'; // 'activos' o 'historial'
         let piezasCotizacion = [];
 
         // MODO OSCURO (DARK MODE)
@@ -723,7 +731,7 @@
             renderizarInventario();
         }
 
-        // RENDERIZAR INVENTARIO AGRUPADO (CON ALERTAS DE STOCK MÍNIMO Y REGISTRO DE VENTAS)
+        // RENDERIZAR INVENTARIO AGRUPADO
         function renderizarInventario() {
             const buscador = document.getElementById('buscarPieza').value.toLowerCase();
             const contenedor = document.getElementById('lista-inventario');
@@ -800,7 +808,6 @@
                                         </button>
                                     </div>
 
-                                    <!-- BOTÓN DE VENTA RÁPIDA -->
                                     ${p.cantidad > 0 ? `
                                     <button onclick="abrirModalVender('${p.id}')" class="ml-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 shadow-sm">
                                         <i class="fa-solid fa-cart-shopping"></i> Vender
@@ -832,7 +839,7 @@
             });
         }
 
-        // MÓDULO REGISTRO Y PROCESAMIENTO DE VENTAS
+        // REGISTRO Y PROCESAMIENTO DE VENTAS
         function abrirModalVender(id) {
             const pieza = inventario.find(p => p.id === id);
             if (!pieza) return;
@@ -865,12 +872,10 @@
             const ahora = new Date();
             const totalUSD = cantVenta * precioVenta;
 
-            // 1. Descontar stock del inventario
             await db.collection('inventario').doc(id).update({
                 cantidad: pieza.cantidad - cantVenta
             });
 
-            // 2. Guardar registro en colección 'ventas'
             await db.collection('ventas').add({
                 modelo: pieza.modelo || 'GR 250',
                 nombre: pieza.nombre,
@@ -989,7 +994,26 @@
             }
         }
 
-        // SECCIÓN TALLER Y PROCESOS
+        // SECCIÓN TALLER Y PROCESOS (SOPORTE PARA HISTORIAL Y RESTAURACIÓN)
+        function cambiarVistaTaller(vista) {
+            vistaTallerActual = vista;
+            const btnActivos = document.getElementById('btn-vista-activos');
+            const btnHistorial = document.getElementById('btn-vista-historial');
+
+            if (vista === 'activos') {
+                btnActivos.className = "flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm text-center";
+                btnHistorial.className = "flex-1 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 text-center";
+                document.getElementById('titulo-sec-doblez').innerHTML = '<i class="fa-solid fa-wave-square"></i> Piezas en Proceso de Doblez';
+                document.getElementById('titulo-sec-pintura').innerHTML = '<i class="fa-solid fa-palette"></i> Piezas en Proceso de Pintura';
+            } else {
+                btnHistorial.className = "flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm text-center";
+                btnActivos.className = "flex-1 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 text-center";
+                document.getElementById('titulo-sec-doblez').innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Historial Completado de Doblez';
+                document.getElementById('titulo-sec-pintura').innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Historial Completado de Pintura';
+            }
+            renderizarTallerProcesos();
+        }
+
         function renderizarTallerProcesos() {
             const contDoblez = document.getElementById('lista-doblez');
             const contPintura = document.getElementById('lista-pintura');
@@ -1000,13 +1024,32 @@
             let enPinturaCount = 0;
             let retornadasCount = 0;
 
-            const doblezActivo = doblezTaller.filter(i => i.estado === 'En Doblez');
-            if (doblezActivo.length === 0) {
-                contDoblez.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en proceso de doblez.</div>`;
+            // Calcular Estadísticas Globales
+            doblezTaller.forEach(i => {
+                if (i.estado === 'En Doblez') enDoblezCount += (i.cantidad || 0);
+            });
+            pinturaTaller.forEach(i => {
+                if (i.estado === 'En Taller') enPinturaCount += (i.cantidad || 0);
+                if (i.estado === 'Completado') retornadasCount += (i.cantidad || 0);
+            });
+
+            document.getElementById('stat-en-doblez').innerText = enDoblezCount;
+            document.getElementById('stat-en-pintura').innerText = enPinturaCount;
+            document.getElementById('stat-retornadas').innerText = retornadasCount;
+
+            // FILTRAR POR VISTA SELECCIONADA
+            const estadoDoblezFiltro = vistaTallerActual === 'activos' ? 'En Doblez' : 'Completado';
+            const estadoPinturaFiltro = vistaTallerActual === 'activos' ? 'En Taller' : 'Completado';
+
+            // RENDERIZAR DOBLEZ
+            const listaDoblezFiltrada = doblezTaller.filter(i => i.estado === estadoDoblezFiltro);
+            if (listaDoblezFiltrada.length === 0) {
+                contDoblez.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en ${vistaTallerActual === 'activos' ? 'proceso' : 'historial'} de doblez.</div>`;
             } else {
-                doblezActivo.forEach(item => {
-                    enDoblezCount += item.cantidad;
+                listaDoblezFiltrada.forEach(item => {
                     const mod = item.modelo ? `[${item.modelo}] ` : '';
+                    const esActivo = item.estado === 'En Doblez';
+
                     contDoblez.innerHTML += `
                         <div class="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2 text-xs">
                             <div class="flex justify-between items-start">
@@ -1015,64 +1058,79 @@
                                     <p class="text-slate-500 dark:text-slate-400">Taller: ${item.taller} | Cantidad: <strong>${item.cantidad}</strong></p>
                                     <p class="text-amber-600 dark:text-amber-400 font-medium">Costo unitario: $${Number(item.costo || 0).toFixed(2)} (Total: $${(item.cantidad * (item.costo || 0)).toFixed(2)})</p>
                                 </div>
-                                <span class="px-2 py-0.5 rounded-full border bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 font-semibold text-[10px]">${item.estado}</span>
+                                <span class="px-2 py-0.5 rounded-full border ${esActivo ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'} font-semibold text-[10px]">${item.estado}</span>
                             </div>
                             <div class="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-700">
                                 <button onclick="eliminarProcesoDoblez('${item.id}')" class="bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-300 px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
                                     <i class="fa-solid fa-trash"></i> Eliminar
                                 </button>
+                                ${esActivo ? `
                                 <button onclick="pasarDeDoblezAPintura('${item.id}')" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
                                     <i class="fa-solid fa-paintbrush"></i> Mandar a Pintura
                                 </button>
+                                ` : `
+                                <button onclick="restaurarDoblez('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i> Restaurar a Doblez
+                                </button>
+                                `}
                             </div>
                         </div>
                     `;
                 });
             }
 
-            const pinturaActiva = pinturaTaller.filter(i => i.estado === 'En Taller');
-            if (pinturaActiva.length === 0) {
-                contPintura.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en pintura.</div>`;
+            // RENDERIZAR PINTURA
+            const listaPinturaFiltrada = pinturaTaller.filter(i => i.estado === estadoPinturaFiltro);
+            if (listaPinturaFiltrada.length === 0) {
+                contPintura.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en ${vistaTallerActual === 'activos' ? 'proceso' : 'historial'} de pintura.</div>`;
             } else {
-                pinturaActiva.forEach(item => {
-                    enPinturaCount += item.cantidad;
+                listaPinturaFiltrada.forEach(item => {
+                    const mod = item.modelo ? `[${item.modelo}] ` : '';
+                    const esActivo = item.estado === 'En Taller';
+
+                    contPintura.innerHTML += `
+                        <div class="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2 text-xs">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${mod}${item.nombre}</h4>
+                                    <p class="text-slate-500 dark:text-slate-400">Taller: ${item.taller} | Cantidad: <strong>${item.cantidad}</strong></p>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full border ${esActivo ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'} font-semibold text-[10px]">${item.estado}</span>
+                            </div>
+                            <div class="text-slate-400 dark:text-slate-400 flex justify-between pt-1 border-t border-slate-100 dark:border-slate-700">
+                                <span>Envío: ${item.fechaEnvio || 'N/D'}</span>
+                                <span>Llegada/Est: ${item.fechaLlegada || item.fechaEstimada || 'N/D'}</span>
+                            </div>
+                            <div class="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-700">
+                                <button onclick="eliminarProcesoPintura('${item.id}')" class="bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-300 px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-trash"></i> Eliminar
+                                </button>
+                                ${esActivo ? `
+                                <button onclick="abrirModalRecepcionPintura('${item.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-clock"></i> Recibir y Añadir a Stock
+                                </button>
+                                ` : `
+                                <button onclick="restaurarPintura('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i> Restaurar a Pintura
+                                </button>
+                                `}
+                            </div>
+                        </div>
+                    `;
                 });
             }
+        }
 
-            pinturaTaller.forEach(item => {
-                if (item.estado === 'Completado') retornadasCount += item.cantidad;
-                if (item.estado !== 'En Taller') return;
+        async function restaurarDoblez(id) {
+            if (confirm('¿Deseas restaurar este registro a la lista de Doblez Activo?')) {
+                await db.collection('doblez').doc(id).update({ estado: 'En Doblez' });
+            }
+        }
 
-                const mod = item.modelo ? `[${item.modelo}] ` : '';
-
-                contPintura.innerHTML += `
-                    <div class="bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2 text-xs">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-bold text-slate-800 dark:text-white text-sm">${mod}${item.nombre}</h4>
-                                <p class="text-slate-500 dark:text-slate-400">Taller: ${item.taller} | Cantidad: <strong>${item.cantidad}</strong></p>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-full border bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 font-semibold text-[10px]">${item.estado}</span>
-                        </div>
-                        <div class="text-slate-400 dark:text-slate-400 flex justify-between pt-1 border-t border-slate-100 dark:border-slate-700">
-                            <span>Envío: ${item.fechaEnvio || 'N/D'}</span>
-                            <span>Est: ${item.fechaEstimada || 'N/D'}</span>
-                        </div>
-                        <div class="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-700">
-                            <button onclick="eliminarProcesoPintura('${item.id}')" class="bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-300 px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
-                                <i class="fa-solid fa-trash"></i> Eliminar
-                            </button>
-                            <button onclick="abrirModalRecepcionPintura('${item.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-semibold transition flex items-center gap-1">
-                                <i class="fa-solid fa-clock"></i> Recibir y Añadir a Stock
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('stat-en-doblez').innerText = enDoblezCount;
-            document.getElementById('stat-en-pintura').innerText = enPinturaCount;
-            document.getElementById('stat-retornadas').innerText = retornadasCount;
+        async function restaurarPintura(id) {
+            if (confirm('¿Deseas restaurar este registro a la lista de Pintura Activa?')) {
+                await db.collection('pintura').doc(id).update({ estado: 'En Taller' });
+            }
         }
 
         async function reiniciarCompletadas() {
@@ -1288,7 +1346,6 @@
                 deudaDoblezTotal += ((p.cantidad || 0) * (p.costo || 0));
             });
 
-            // Métricas de ventas
             let totalVentasUSD = 0;
             let totalUnidadesVendidas = 0;
             ventasHistorial.forEach(v => {
@@ -1303,7 +1360,6 @@
             document.getElementById('val-ventas-totales').innerText = `$${totalVentasUSD.toFixed(2)}`;
             document.getElementById('val-piezas-vendidas').innerText = totalUnidadesVendidas;
 
-            // Renderizar Historial Reciente de Ventas
             const contHist = document.getElementById('lista-historial-ventas');
             contHist.innerHTML = '';
             if (ventasHistorial.length === 0) {
