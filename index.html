@@ -181,7 +181,7 @@
                 </div>
             </div>
 
-            <!-- MÓDULO DE VENTAS Y MÉTRICAS -->
+            <!-- MÓDULO DE VENTAS Y MÉTRICAS (HISTORIAL AMPLIADO) -->
             <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 p-4 rounded-2xl shadow-sm space-y-3">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-emerald-900 dark:text-emerald-300 text-sm flex items-center gap-2">
@@ -201,9 +201,13 @@
                 </div>
 
                 <div class="pt-2 space-y-2">
-                    <p class="text-xs font-bold text-emerald-900 dark:text-emerald-300">Historial Reciente de Ventas:</p>
-                    <div id="lista-historial-ventas" class="space-y-1.5 max-h-40 overflow-y-auto text-xs">
-                        <p class="text-slate-400 text-center py-2">No hay ventas registradas aún.</p>
+                    <div class="flex justify-between items-center">
+                        <p class="text-xs font-bold text-emerald-900 dark:text-emerald-300">Historial de Ventas:</p>
+                        <span id="contador-ventas-historial" class="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">0 ventas</span>
+                    </div>
+                    <!-- CONTENEDOR AMPLIADO Y MÁS ALTO CON SCROLL FLUIDO -->
+                    <div id="lista-historial-ventas" class="space-y-1.5 max-h-80 overflow-y-auto pr-1 text-xs">
+                        <p class="text-slate-400 text-center py-4">No hay ventas registradas aún.</p>
                     </div>
                 </div>
             </div>
@@ -493,7 +497,7 @@
         let ventasHistorial = [];
         let filtroActual = 'todos';
         let modeloFiltroActual = 'todos';
-        let vistaTallerActual = 'activos'; // 'activos' o 'historial'
+        let vistaTallerActual = 'activos';
         let piezasCotizacion = [];
 
         // MODO OSCURO (DARK MODE)
@@ -994,7 +998,7 @@
             }
         }
 
-        // SECCIÓN TALLER Y PROCESOS (SOPORTE PARA HISTORIAL Y RESTAURACIÓN)
+        // SECCIÓN TALLER Y PROCESOS
         function cambiarVistaTaller(vista) {
             vistaTallerActual = vista;
             const btnActivos = document.getElementById('btn-vista-activos');
@@ -1024,7 +1028,6 @@
             let enPinturaCount = 0;
             let retornadasCount = 0;
 
-            // Calcular Estadísticas Globales
             doblezTaller.forEach(i => {
                 if (i.estado === 'En Doblez') enDoblezCount += (i.cantidad || 0);
             });
@@ -1037,11 +1040,9 @@
             document.getElementById('stat-en-pintura').innerText = enPinturaCount;
             document.getElementById('stat-retornadas').innerText = retornadasCount;
 
-            // FILTRAR POR VISTA SELECCIONADA
             const estadoDoblezFiltro = vistaTallerActual === 'activos' ? 'En Doblez' : 'Completado';
             const estadoPinturaFiltro = vistaTallerActual === 'activos' ? 'En Taller' : 'Completado';
 
-            // RENDERIZAR DOBLEZ
             const listaDoblezFiltrada = doblezTaller.filter(i => i.estado === estadoDoblezFiltro);
             if (listaDoblezFiltrada.length === 0) {
                 contDoblez.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en ${vistaTallerActual === 'activos' ? 'proceso' : 'historial'} de doblez.</div>`;
@@ -1079,7 +1080,6 @@
                 });
             }
 
-            // RENDERIZAR PINTURA
             const listaPinturaFiltrada = pinturaTaller.filter(i => i.estado === estadoPinturaFiltro);
             if (listaPinturaFiltrada.length === 0) {
                 contPintura.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">No hay piezas en ${vistaTallerActual === 'activos' ? 'proceso' : 'historial'} de pintura.</div>`;
@@ -1319,7 +1319,7 @@
             cerrarModalRecepcionPintura();
         }
 
-        // SECCIÓN CUENTAS Y ESTADÍSTICAS DE VENTAS
+        // SECCIÓN CUENTAS Y ESTADÍSTICAS DE VENTAS (HISTORIAL AMPLIADO)
         function renderizarCuentas() {
             let valorTotal = 0;
             let totalPiezasStock = 0;
@@ -1359,21 +1359,23 @@
             document.getElementById('val-deuda-doblez').innerText = `$${deudaDoblezTotal.toFixed(2)}`;
             document.getElementById('val-ventas-totales').innerText = `$${totalVentasUSD.toFixed(2)}`;
             document.getElementById('val-piezas-vendidas').innerText = totalUnidadesVendidas;
+            document.getElementById('contador-ventas-historial').innerText = `${ventasHistorial.length} ventas`;
 
+            // RENDERIZAR HISTORIAL DE VENTAS AMPLIADO (SIN LÍMITE DE 8, MÁS ALTO Y DESLIZABLE)
             const contHist = document.getElementById('lista-historial-ventas');
             contHist.innerHTML = '';
             if (ventasHistorial.length === 0) {
-                contHist.innerHTML = '<p class="text-slate-400 text-center py-2">No hay ventas registradas aún.</p>';
+                contHist.innerHTML = '<p class="text-slate-400 text-center py-4">No hay ventas registradas aún.</p>';
             } else {
                 const ordenadas = [...ventasHistorial].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                ordenadas.slice(0, 8).forEach(v => {
+                ordenadas.forEach(v => {
                     contHist.innerHTML += `
-                        <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <div>
                                 <span class="font-bold text-slate-800 dark:text-slate-200">[${v.modelo}] ${v.nombre}</span>
                                 <span class="text-[10px] text-slate-500 dark:text-slate-400 block">${v.cantidad} unidad(es) - ${v.fecha || 'N/D'} ${v.hora || ''}</span>
                             </div>
-                            <strong class="text-emerald-600 dark:text-emerald-400 font-extrabold">+$${Number(v.totalUSD || 0).toFixed(2)}</strong>
+                            <strong class="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">+$${Number(v.totalUSD || 0).toFixed(2)}</strong>
                         </div>
                     `;
                 });
